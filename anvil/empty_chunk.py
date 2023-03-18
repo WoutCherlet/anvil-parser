@@ -35,7 +35,7 @@ class EmptyChunk:
         self.z = z
         self.sections: List[EmptySection] = [None]*24
         self.biomes: List[Biome] = [Biome('ocean')]*16*16
-        self.version = 1976
+        self.version = 3337
 
     def add_section(self, section: EmptySection, replace: bool = True):
         """
