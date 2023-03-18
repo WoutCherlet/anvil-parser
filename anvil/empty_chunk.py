@@ -114,7 +114,7 @@ class EmptyChunk:
             raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of -64 to 320')
         section = self.sections[(y // 16) + 4]
         if section is None:
-            section = EmptySection((y // 16) + 4)
+            section = EmptySection(y // 16)
             self.add_section(section)
         section.set_block(block, x, y % 16, z)
 
