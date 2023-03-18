@@ -33,7 +33,7 @@ class EmptyChunk:
     def __init__(self, x: int, z: int):
         self.x = x
         self.z = z
-        self.sections: List[EmptySection] = [None]*16
+        self.sections: List[EmptySection] = [None]*24
         self.biomes: List[Biome] = [Biome('ocean')]*16*16
         self.version = 1976
 
@@ -66,7 +66,7 @@ class EmptyChunk:
         int x, z
             In range of 0 to 15
         y
-            In range of 0 to 255
+            In range of -64 to 319
 
         Raises
         ------
@@ -83,9 +83,9 @@ class EmptyChunk:
             raise OutOfBoundsCoordinates(f'X ({x!r}) must be in range of 0 to 15')
         if z not in range(16):
             raise OutOfBoundsCoordinates(f'Z ({z!r}) must be in range of 0 to 15')
-        if y not in range(256):
-            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of 0 to 255')
-        section = self.sections[y // 16]
+        if y not in range(-64, 320):
+            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of -64 to 319')
+        section = self.sections[(y // 16) + 4]
         if section is None:
             return
         return section.get_block(x, y % 16, z)
@@ -99,7 +99,7 @@ class EmptyChunk:
         int x, z
             In range of 0 to 15
         y
-            In range of 0 to 255
+            In range of -64 to 319
 
         Raises
         ------
@@ -110,11 +110,11 @@ class EmptyChunk:
             raise OutOfBoundsCoordinates(f'X ({x!r}) must be in range of 0 to 15')
         if z not in range(16):
             raise OutOfBoundsCoordinates(f'Z ({z!r}) must be in range of 0 to 15')
-        if y not in range(256):
-            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of 0 to 255')
-        section = self.sections[y // 16]
+        if y not in range(-64, 320):
+            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of -64 to 320')
+        section = self.sections[(y // 16) + 4]
         if section is None:
-            section = EmptySection(y // 16)
+            section = EmptySection((y // 16) + 4)
             self.add_section(section)
         section.set_block(block, x, y % 16, z)
 
