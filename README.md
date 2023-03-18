@@ -5,15 +5,15 @@
 [![Tests](https://github.com/matcool/anvil-parser/actions/workflows/run-pytest.yml/badge.svg)](https://github.com/matcool/anvil-parser/actions/workflows/run-pytest.yml)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/anvil-parser)](https://pypi.org/project/anvil-parser/)
 
-Simple parser for the [Minecraft anvil file format](https://minecraft.gamepedia.com/Anvil_file_format)
+Simple parser for the [Minecraft anvil file format](https://minecraft.gamepedia.com/Anvil_file_format), updated to work with new chunk and region formats.
 # Installation
-This project is available on [PyPI](https://pypi.org/project/anvil-parser/) and can be installed with pip
+The original project is available on [PyPI](https://pypi.org/project/anvil-parser/) and can be installed with pip
 ```
 pip install anvil-parser
 ```
-or directly from github
+To write chuncks and regions in 1.16 and up, install from github
 ```
-pip install git+https://github.com/matcool/anvil-parser.git
+pip install git+https://github.com/WoutCherlet/anvil-parser.git
 ```
 # Usage
 ## Reading
@@ -54,13 +54,5 @@ for y in range(16):
 # Save to a file
 region.save('r.0.0.mca')
 ```
-# Todo
-*things to do before 1.0.0*
-- [x] Proper documentation
-- [x] Biomes
-- [x] CI
-- [ ] More tests
-  - [ ] Tests for 20w17a+ BlockStates format
 # Note
-Testing done in 1.14.4 - 1.19, should work fine for other versions. 
-Writing chunks and regions is broken from 1.16 onwards
+Tested for version 1.19
