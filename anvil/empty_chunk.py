@@ -199,17 +199,12 @@ class EmptyChunk:
         sections = nbt.TAG_Compound()
         # Needs to be in a separate line because it just gets
         # ignored if you pass it as a kwarg in the constructor
-        sections = nbt.TAG_List(name='Sections', type=nbt.TAG_Compound)
+        sections = nbt.TAG_List(name='sections', type=nbt.TAG_Compound)
 
-        # TODO: fix biomes: 
-        # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
-        # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
-        biomes = nbt.TAG_Int_Array(name='Biomes')
-        biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
 
         for s in self.sections:
             if s:
-                sections.tags.append(s.save())
+                sections.tags.append(s.save_new())
         root.tags.append(sections)
 
         root.tags.extend([

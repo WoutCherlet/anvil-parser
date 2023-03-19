@@ -175,3 +175,55 @@ class EmptySection:
         root.tags.append(bstates)
 
         return root
+    
+    def save_new(self)  -> nbt.TAG_Compound:
+        """
+        Saves the section to a TAG_Compound and is used inside the chunk tag, using new format starting from 1.16
+        
+        # TODO: fix biomes
+        """
+        root = nbt.TAG_Compound()
+        root.tags.append(nbt.TAG_Byte(name='Y', value=self.y))
+
+        block_states = nbt.TAG_Compound(name='block_states')
+
+        nbt_pal = nbt.TAG_List(name='palette', type=nbt.TAG_Compound)
+        for block in self.palette():
+            tag = nbt.TAG_Compound()
+            tag.tags.append(nbt.TAG_String(name='Name', value=block.name()))
+            if block.properties:
+                properties = nbt.TAG_Compound()
+                properties.name = 'Properties'
+                for key, value in block.properties.items():
+                    if isinstance(value, str):
+                        properties.tags.append(nbt.TAG_String(name=key, value=value))
+                    elif isinstance(value, bool):
+                        # booleans are a string saved as either 'true' or 'false'
+                        properties.tags.append(nbt.TAG_String(name=key, value=str(value).lower()))
+                    elif isinstance(value, int):
+                        # ints also seem to be saved as a string
+                        properties.tags.append(nbt.TAG_String(name=key, value=str(value)))
+                    else:
+                        # assume its a nbt tag and just append it
+                        properties.tags.append(value)
+                tag.tags.append(properties)
+            nbt_pal.tags.append(tag)
+
+        states = self.blockstates(palette=self.palette())
+        bstates = nbt.TAG_Long_Array(name='data')
+        bstates.value = states
+        block_states.tags.append(nbt_pal)
+        block_states.tags.append(bstates)
+        
+        # TODO: fix biomes: 
+        # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
+        # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
+        nbt_biom = nbt.TAG_Compound(name='biomes')
+        nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_Compound)
+        # this is a placeholder for when biomes are supported, remove
+        nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
+        nbt_biom.tags.append(nbt_pal_biom)
+
+        root.tags.append(nbt_biom)
+        root.tags.append(block_states)
+        return root
