@@ -291,7 +291,7 @@ class EmptyRegion:
                 nbt_data.tags.append(nbt.TAG_Int(name='DataVersion', value=chunk.version))
                 nbt_data.tags.append(chunk.data)
             else:
-                nbt_data = chunk.save()
+                nbt_data = chunk.save_new()
             nbt_data.write_file(buffer=chunk_data)
             chunk_data.seek(0)
             chunk_data = zlib.compress(chunk_data.read())

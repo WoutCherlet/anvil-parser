@@ -173,13 +173,53 @@ class EmptyChunk:
         biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
         for s in self.sections:
             if s:
+                sections.tags.append(s.save())
+        level.tags.append(sections)
+        level.tags.append(biomes)
+        root.tags.append(level)
+        return root
+
+
+    def save_new(self) -> nbt.NBTFile:
+        """
+        Saves the chunk data to a :class:`NBTFile`, using new formatting
+
+        Notes
+        -----
+        Does not contain most data a regular chunk would have,
+        but minecraft stills accept it.
+        """
+        root = nbt.NBTFile()
+        root.tags.append(nbt.TAG_Int(name='DataVersion',value=self.version))
+        sections = nbt.TAG_Compound()
+        # Needs to be in a separate line because it just gets
+        # ignored if you pass it as a kwarg in the constructor
+        sections = nbt.TAG_List(name='Sections', type=nbt.TAG_Compound)
+
+        # TODO: fix biomes
+        biomes = nbt.TAG_Int_Array(name='Biomes')
+        biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
+
+        for s in self.sections:
+            if s:
                 p = s.palette()
                 # Minecraft does not save sections that are just air
                 # So we can just skip them
                 if len(p) == 1 and p[0].name() == 'minecraft:air':
                     continue
                 sections.tags.append(s.save())
-        level.tags.append(sections)
-        level.tags.append(biomes)
-        root.tags.append(level)
+        root.tags.append(sections)
+
+        root.tags.extend([
+            nbt.TAG_List(name='block_entities', type=nbt.TAG_Compound),
+            nbt.TAG_List(name='block_ticks', type=nbt.TAG_Compound),
+            nbt.TAG_List(name='fluid_ticks', type=nbt.TAG_Compound),
+            nbt.TAG_Long(name='LastUpdate', value=0),
+            nbt.TAG_Long(name='InhabitedTime', value=0),
+            nbt.TAG_Byte(name='isLightOn', value=1),
+            nbt.TAG_Int(name='xPos', value=self.x),
+            nbt.TAG_Int(name='yPos', value=-4),
+            nbt.TAG_Int(name='zPos', value=self.z),
+            nbt.TAG_String(name='Status', value='full')
+        ])
         return root
