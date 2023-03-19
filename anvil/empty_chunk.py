@@ -173,6 +173,11 @@ class EmptyChunk:
         biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
         for s in self.sections:
             if s:
+                p = s.palette()
+                # Minecraft does not save sections that are just air
+                # So we can just skip them
+                if len(p) == 1 and p[0].name() == 'minecraft:air':
+                    continue
                 sections.tags.append(s.save())
         level.tags.append(sections)
         level.tags.append(biomes)
@@ -196,17 +201,14 @@ class EmptyChunk:
         # ignored if you pass it as a kwarg in the constructor
         sections = nbt.TAG_List(name='Sections', type=nbt.TAG_Compound)
 
-        # TODO: fix biomes
+        # TODO: fix biomes: 
+        # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
+        # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
         biomes = nbt.TAG_Int_Array(name='Biomes')
         biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
 
         for s in self.sections:
             if s:
-                p = s.palette()
-                # Minecraft does not save sections that are just air
-                # So we can just skip them
-                if len(p) == 1 and p[0].name() == 'minecraft:air':
-                    continue
                 sections.tags.append(s.save())
         root.tags.append(sections)
 
