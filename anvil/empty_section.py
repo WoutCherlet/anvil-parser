@@ -219,7 +219,7 @@ class EmptySection:
         # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
         # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
         nbt_biom = nbt.TAG_Compound(name='biomes')
-        nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_STRING)
+        nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_String)
         # this is a placeholder for when biomes are supported, remove
         nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
         nbt_biom.tags.append(nbt_pal_biom)
