@@ -53,9 +53,9 @@ class EmptyChunk:
         anvil.EmptySectionAlreadyExists
             If ``replace`` is ``False`` and section with same Y already exists in this chunk
         """
-        if self.sections[section.y] and not replace:
+        if self.sections[section.y+4] and not replace:
             raise EmptySectionAlreadyExists(f'EmptySection (Y={section.y}) already exists in this chunk')
-        self.sections[section.y] = section
+        self.sections[section.y+4] = section
 
     def get_block(self, x: int, y: int, z: int) -> Block:
         """
