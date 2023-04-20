@@ -247,6 +247,8 @@ class Chunk:
         """
 
         # TODO: support more versions ?
+        if not self.constructed:
+            return self.data
 
         if self.version > _VERSION_1_17_1:
             return self.save_new()

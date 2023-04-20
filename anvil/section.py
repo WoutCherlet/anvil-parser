@@ -74,33 +74,34 @@ class Section:
     air: :class:`Block`
         An air block
     """
-    __slots__ = ('y', 'blocks', 'air', 'version', 'data')
+    __slots__ = ('y', 'blocks', 'air', 'version', 'data', 'constructed')
     def __init__(self, data: nbt.TAG_COMPOUND, chunk_version, y=None):
         self.version = chunk_version
         self.blocks: List[Block] = [None] * 4096
         self.data = data
         if data is None:
             self.y = y
+            self.constructed = True
         else:
-            self.read_data(data)
+            self.y = data["Y"].value
+            self.constructed = False
         # Block that will be used when None
         self.air = Block('minecraft', 'air')
+        
 
-        # TODO: only read and change data if particular section is changed, otherwise return orig data when saved
-
-    def read_data(self, data):
+    def read_data(self):
         """
         Decode section data
         """
-        self.y = data["Y"].value
+        self.y = self.data["Y"].value
 
         try:
-            block_states = _states_from_section(data)
+            block_states = _states_from_section(self.data)
         except KeyError:
             try:
-                block_states = data["block_states"]
+                block_states = self.data["block_states"]
             except KeyError:
-                print(f"Unreadable section {data}, resetting to all air")
+                print(f"Unreadable section {self.data}, resetting to all air")
                 return
             block = block_states["palette"][0]["Name"].value
             if block == "minecraft:air":
@@ -109,7 +110,7 @@ class Section:
                 self.blocks = [Block.from_name(block) for _ in range(4096)]
                 return
 
-        block_palette = _palette_from_section(data)
+        block_palette = _palette_from_section(self.data)
         
         bits = max((len(block_palette) - 1).bit_length(), 4)
 
@@ -171,6 +172,9 @@ class Section:
         """
         if not self.inside(x, y, z):
             raise OutOfBoundsCoordinates('X Y and Z must be in range of 0-15')
+        if not self.constructed:
+            self.read_data()
+            self.constructed = True
         index = y * 256 + z * 16 + x
         self.blocks[index] = block
 
@@ -190,6 +194,9 @@ class Section:
         """
         if not self.inside(x, y, z):
             raise OutOfBoundsCoordinates('X Y and Z must be in range of 0-15')
+        if not self.constructed:
+            self.read_data()
+            self.constructed = True
         index = y * 256 + z * 16 + x
         return self.blocks[index] or self.air
 
@@ -246,6 +253,9 @@ class Section:
         """
 
         # TODO: support more versions when adding biomes? 
+
+        if not self.constructed:
+            return self.data
         if new:
             return self.save_new()
         else:

@@ -215,7 +215,7 @@ class EmptySection:
         block_states.tags.append(nbt_pal)
         block_states.tags.append(bstates)
         
-        # TODO: fix biomes: 
+        # TODO: fix biomes: might be easy by just setting biome for whole section?
         # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
         # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
         nbt_biom = nbt.TAG_Compound(name='biomes')
