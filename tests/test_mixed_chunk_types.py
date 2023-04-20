@@ -1,5 +1,5 @@
 import context as _
-from anvil import Chunk, EmptyChunk, EmptyRegion, Block, Region
+from anvil import Chunk, EmptyChunk, EmptyRegion, Block, RORegion
 import random
 
 def test_mixed_chunk_types():
@@ -18,7 +18,7 @@ def test_mixed_chunk_types():
     region.add_chunk(chunk)
     region.add_chunk(empty_chunk)
 
-    region = Region(region.save())
+    region = RORegion(region.save())
 
     for i in range(2):
         chunk = region.get_chunk(i, 0)

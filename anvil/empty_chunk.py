@@ -141,7 +141,7 @@ class EmptyChunk:
         index = z * 16 + x
         self.biomes[index] = biome
 
-    def save(self) -> nbt.NBTFile:
+    def save_old(self) -> nbt.NBTFile:
         """
         Saves the chunk data to a :class:`NBTFile`
 
@@ -184,8 +184,7 @@ class EmptyChunk:
         root.tags.append(level)
         return root
 
-
-    def save_new(self) -> nbt.NBTFile:
+    def save(self) -> nbt.NBTFile:
         """
         Saves the chunk data to a :class:`NBTFile`, using new formatting
 
@@ -204,7 +203,7 @@ class EmptyChunk:
 
         for s in self.sections:
             if s:
-                sections.tags.append(s.save_new())
+                sections.tags.append(s.save())
         root.tags.append(sections)
 
         root.tags.extend([

@@ -1,9 +1,31 @@
-from typing import List, Tuple
-from . import Block
+from typing import List, Tuple, Optional
+from .block import Block
 from .errors import OutOfBoundsCoordinates
 from nbt import nbt
 from struct import Struct
 import array
+
+# This is the final version before the Minecraft overhaul that includes the 
+# 1.18 expansion of the world's vertical height from -64 to 319
+_VERSION_1_17_1 = 2730
+
+# This version removes block state value stretching from the storage
+# so a block value isn't in multiple elements of the array
+_VERSION_20w17a = 2529
+
+# This version changes how biomes are stored to allow for biomes at different heights
+# https://minecraft.fandom.com/wiki/Java_Edition_19w36a
+_VERSION_19w36a = 2203
+
+# This is the version where "The Flattening" (https://minecraft.gamepedia.com/Java_Edition_1.13/Flattening) happened
+# where blocks went from numeric ids to namespaced ids (namespace:block_id)
+_VERSION_17w47a = 1451
+
+def _section_height_range(version: Optional[int]) -> range:
+    if version is not None and version > _VERSION_17w47a:
+        return range(-4, 20)
+    else:
+        return range(16)
 
 # dirty mixin to change q to Q
 def _update_fmt(self, length):
@@ -14,7 +36,28 @@ def bin_append(a, b, length=None):
     length = length or b.bit_length()
     return (a << length) | b
 
-class EmptySection:
+def _states_from_section(section: nbt.TAG_Compound) -> list:
+        # BlockStates is an array of 64 bit numbers
+        # that holds the blocks index on the palette list
+        if 'block_states' in section:
+            states = section['block_states']['data']
+        else:
+            states = section['BlockStates']
+
+        # makes sure the number is unsigned
+        # by adding 2^64
+        # could also use ctypes.c_ulonglong(n).value but that'd require an extra import
+
+        return [state if state >= 0 else states + 2 ** 64 
+            for state in states.value]
+
+def _palette_from_section(section: nbt.TAG_Compound) -> nbt.TAG_List:
+    if 'block_states' in section:
+        return section["block_states"]["palette"]
+    else:
+        return section["Palette"]
+
+class Section:
     """
     Used for making own sections.
 
@@ -31,13 +74,72 @@ class EmptySection:
     air: :class:`Block`
         An air block
     """
-    __slots__ = ('y', 'blocks', 'air')
-    def __init__(self, y: int):
-        self.y = y
-        # None is the same as an air block
+    __slots__ = ('y', 'blocks', 'air', 'version', 'data')
+    def __init__(self, data: nbt.TAG_COMPOUND, chunk_version, y=None):
+        self.version = chunk_version
         self.blocks: List[Block] = [None] * 4096
+        self.data = data
+        if data is None:
+            self.y = y
+        else:
+            self.read_data(data)
         # Block that will be used when None
         self.air = Block('minecraft', 'air')
+
+        # TODO: only read and change data if particular section is changed, otherwise return orig data when saved
+
+    def read_data(self, data):
+        """
+        Decode section data
+        """
+        self.y = data["Y"].value
+
+        try:
+            block_states = _states_from_section(data)
+        except KeyError:
+            try:
+                block_states = data["block_states"]
+            except KeyError:
+                print(f"Unreadable section {data}, resetting to all air")
+                return
+            block = block_states["palette"][0]["Name"].value
+            if block == "minecraft:air":
+                return
+            else: 
+                self.blocks = [Block.from_name(block) for _ in range(4096)]
+                return
+
+        block_palette = _palette_from_section(data)
+        
+        bits = max((len(block_palette) - 1).bit_length(), 4)
+
+        stretches = self.version < _VERSION_20w17a
+
+        data = block_states[0]
+        data_len = 64
+        state = 0
+
+        bits_mask = 2**bits - 1
+
+        for i in range(4096):
+            if data_len < bits:
+                state += 1
+                new_data = block_states[state]
+
+                if stretches:
+                    leftover = data_len
+                    data_len += 64
+
+                    data = bin_append(new_data, data, leftover)
+                else:
+                    data = new_data
+                    data_len = 64
+
+            palette_id = data & bits_mask
+            self.blocks[i] = Block.from_palette(block_palette[palette_id])
+
+            data >>= bits
+            data_len -= bits
 
     @staticmethod
     def inside(x: int, y: int, z: int) -> bool:
@@ -136,6 +238,18 @@ class EmptySection:
                 current_len += bits
         states.append(current)
         return states
+    
+    def save(self, new: bool = True) -> nbt.TAG_COMPOUND:
+        """
+        Saves the section to a TAG_Compound and is used inside the chunk tag, format depends on version
+        This is missing the SkyLight tag, but minecraft still accepts it anyway
+        """
+
+        # TODO: support more versions when adding biomes? 
+        if new:
+            return self.save_new()
+        else:
+            return self.save_old()
 
     def save_old(self) -> nbt.TAG_Compound:
         """
@@ -176,7 +290,7 @@ class EmptySection:
 
         return root
     
-    def save(self)  -> nbt.TAG_Compound:
+    def save_new(self)  -> nbt.TAG_Compound:
         """
         Saves the section to a TAG_Compound and is used inside the chunk tag, using new format starting from 1.16
         

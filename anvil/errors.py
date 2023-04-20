@@ -10,5 +10,11 @@ class EmptySectionAlreadyExists(Exception):
     and the chunk already has a section with the same Y
     """
 
+class SectionAlreadyExists(Exception):
+    """
+    Exception used for when trying to add an `Section` to a `Chunk`
+    and the chunk already has a section with the same Y
+    """
+
 class GZipChunkData(Exception):
     """Exception used when trying to get chunk data compressed in gzip"""

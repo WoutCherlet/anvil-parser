@@ -133,8 +133,8 @@ class EmptyRegion:
         """
         if not self.inside(x, y, z):
             raise OutOfBoundsCoordinates(f'Block ({x}, {y}, {z}) is not inside this region')
-        cx = x // 16
-        cz = z // 16
+        cx = x // 32
+        cz = z // 32
         chunk = self.get_chunk(cx, cz)
         if chunk is None:
             chunk = EmptyChunk(cx, cz)
@@ -291,7 +291,7 @@ class EmptyRegion:
                 nbt_data.tags.append(nbt.TAG_Int(name='DataVersion', value=chunk.version))
                 nbt_data.tags.append(chunk.data)
             else:
-                nbt_data = chunk.save_new()
+                nbt_data = chunk.save()
             nbt_data.write_file(buffer=chunk_data)
             chunk_data.seek(0)
             chunk_data = zlib.compress(chunk_data.read())

@@ -2,8 +2,8 @@ from typing import Union, Tuple, Generator, Optional
 from nbt import nbt
 from .biome import Biome
 from .block import Block, OldBlock
-from .errors import OutOfBoundsCoordinates, SectionAlreadyExists
-from .section import Section
+from .region import Region
+from .errors import OutOfBoundsCoordinates, ChunkNotFound
 
 # This is the final version before the Minecraft overhaul that includes the 
 # 1.18 expansion of the world's vertical height from -64 to 319
@@ -30,12 +30,21 @@ def bin_append(a, b, length=None):
     length = length or b.bit_length()
     return (a << length) | b
 
+
 def nibble(byte_array, index):
     value = byte_array[index // 2]
     if index % 2:
         return value >> 4
     else:
         return value & 0b1111
+
+
+def _palette_from_section(section: nbt.TAG_Compound) -> nbt.TAG_List:
+    if 'block_states' in section:
+        return section["block_states"]["palette"]
+    else:
+        return section["Palette"]
+
 
 def _states_from_section(section: nbt.TAG_Compound) -> list:
         # BlockStates is an array of 64 bit numbers
@@ -52,11 +61,6 @@ def _states_from_section(section: nbt.TAG_Compound) -> list:
         return [state if state >= 0 else states + 2 ** 64 
             for state in states.value]
 
-def _palette_from_section(section: nbt.TAG_Compound) -> nbt.TAG_List:
-    if 'block_states' in section:
-        return section["block_states"]["palette"]
-    else:
-        return section["Palette"]
 
 def _section_height_range(version: Optional[int]) -> range:
     if version is not None and version > _VERSION_17w47a:
@@ -65,9 +69,11 @@ def _section_height_range(version: Optional[int]) -> range:
         return range(16)
 
 
-class Chunk:
+class ROChunk:
     """
     Represents a chunk from a ``.mca`` file.
+
+    Note that this is read only.
 
     Attributes
     ----------
@@ -81,257 +87,26 @@ class Chunk:
         Raw NBT data of the chunk
     tile_entities: :class:`nbt.TAG_Compound`
         ``self.data['TileEntities']`` as an attribute for easier use
-    sections: List[:class:`anvil.EmptySection`]
-        List of all the sections in this chunk
     """
 
-    __slots__ = ("version", "data", "x", "z", "tile_entities", "sections", "constructed")
+    __slots__ = ("version", "data", "x", "z", "tile_entities")
 
-    def __init__(self, nbt_data: nbt.NBTFile, x=None, z=None, version=None):
-        # 2 options: 
-        # data is None: empty chunk, init manually
-        if nbt_data is None:
-            self.data = None
-            if version is None:
-                # TODO: versioning if data is None?
-                self.version = _VERSION_1_17_1 + 1
-            else:
-                self.version = version
-            self.x = x
-            self.z = z
-            self.tile_entities = None
-
-            self.sections = [None] * len(_section_height_range(self.version))
-        
-        # data is not None: read in chunk
-        else:
-            try:
-                self.version = nbt_data["DataVersion"].value
-            except KeyError:
-                # Version is pre-1.9 snapshot 15w32a, so world does not have a Data Version.
-                # See https://minecraft.fandom.com/wiki/Data_version
-                self.version = None
-
-            if self.version > _VERSION_1_17_1:
-                self.data = nbt_data
-                self.tile_entities = self.data["block_entities"]
-            else:
-                self.data = nbt_data["Level"]
-                self.tile_entities = self.data["TileEntities"]
-            self.x = self.data["xPos"].value
-            self.z = self.data["zPos"].value
-            if (x != self.x) or (z != self.z):
-                print("ALERT: X/Z MISMATCH IN CHUNK")
-                print(f"Assigned x: {x}, actual x: {self.x}")
-                print(f"Assigned z: {z}, actual x: {self.z}")
-            self.sections = [None] * len(_section_height_range(self.version))
-        
-        self.constructed = False
-    
-    def get_sections_from_data(self):
-        """
-        Returns the sections read from data in editable format
-        """
-        if 'sections' in self.data:
-            sec_data = self.data["sections"]
-        else:
-            try:
-                sec_data = self.data["Sections"]
-            except KeyError:
-                return None
-        
-        self.sections = [None] * len(_section_height_range(self.version))
-        for data in sec_data:
-            new_sec = Section(data, self.version)
-            self.sections[new_sec.y + 4] = new_sec
-
-    def add_section(self, section: Section, replace: bool = True):
-        """
-        Adds a section to the chunk
-
-        Parameters
-        ----------
-        section
-            Section to add
-        replace
-            Whether to replace section if one at same Y already exists
-        
-        Raises
-        ------
-        anvil.EmptySectionAlreadyExists
-            If ``replace`` is ``False`` and section with same Y already exists in this chunk
-        """
-        if not self.constructed:
-            self.get_sections_from_data()
-            self.constructed = True
-        if self.sections[section.y+4] and not replace:
-            raise SectionAlreadyExists(f'EmptySection (Y={section.y}) already exists in this chunk')
-        self.sections[section.y+4] = section
-
-    def get_block(self, x: int, y: int, z: int) -> Block:
-        """
-        Gets the block at given coordinates
-        
-        Parameters
-        ----------
-        int x, z
-            In range of 0 to 15
-        y
-            In range of -64 to 319
-
-        Raises
-        ------
-        anvil.OutOfBoundCoordidnates
-            If X, Y or Z are not in the proper range
-
-        Returns
-        -------
-        block : :class:`anvil.Block` or None
-            Returns ``None`` if the section is empty, meaning the block
-            is most likely an air block.
-        """
-        if x not in range(16):
-            raise OutOfBoundsCoordinates(f'X ({x!r}) must be in range of 0 to 15')
-        if z not in range(16):
-            raise OutOfBoundsCoordinates(f'Z ({z!r}) must be in range of 0 to 15')
-        # TODO: make dependent on version
-        if y not in range(-64, 320):
-            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of -64 to 319')
-        if not self.constructed:
-            return self.get_block_from_data(x,y,z)
-        section = self.sections[(y // 16) + 4]
-        if section is None:
-            return
-        return section.get_block(x, y % 16, z)
-
-    def set_block(self, block: Block, x: int, y: int, z: int):
-        """
-        Sets block at given coordinates
-        
-        Parameters
-        ----------
-        int x, z
-            In range of 0 to 15
-        y
-            In range of -64 to 319
-
-        Raises
-        ------
-        anvil.OutOfBoundCoordidnates
-            If X, Y or Z are not in the proper range
-        """
-        if x not in range(16):
-            raise OutOfBoundsCoordinates(f'X ({x!r}) must be in range of 0 to 15')
-        if z not in range(16):
-            raise OutOfBoundsCoordinates(f'Z ({z!r}) must be in range of 0 to 15')
-        # TODO: make dependent on version
-        if y not in range(-64, 320):
-            raise OutOfBoundsCoordinates(f'Y ({y!r}) must be in range of -64 to 320')
-        if not self.constructed:
-            self.get_sections_from_data()
-            self.constructed = True
-        section = self.sections[(y // 16) + 4]
-        if section is None:
-            section = Section(y // 16)
-            self.add_section(section)
-        section.set_block(block, x, y % 16, z)
-
-    def save(self) -> nbt.NBTFile:
-        """
-        Saves the chunk data to a :class:`NBTFile` with format depending on version
-
-        Notes
-        -----
-        Does not contain most data a regular chunk would have,
-        but minecraft stills accept it.
-        """
-
-        # TODO: support more versions ?
+    def __init__(self, nbt_data: nbt.NBTFile):
+        try:
+            self.version = nbt_data["DataVersion"].value
+        except KeyError:
+            # Version is pre-1.9 snapshot 15w32a, so world does not have a Data Version.
+            # See https://minecraft.fandom.com/wiki/Data_version
+            self.version = None
 
         if self.version > _VERSION_1_17_1:
-            return self.save_new()
+            self.data = nbt_data
+            self.tile_entities = self.data["block_entities"]
         else:
-            return self.save_old()
-
-    def save_old(self) -> nbt.NBTFile:
-        """
-        Saves the chunk data to a :class:`NBTFile`
-
-        Notes
-        -----
-        Does not contain most data a regular chunk would have,
-        but minecraft stills accept it.
-        """
-        root = nbt.NBTFile()
-        root.tags.append(nbt.TAG_Int(name='DataVersion',value=self.version))
-        level = nbt.TAG_Compound()
-        # Needs to be in a separate line because it just gets
-        # ignored if you pass it as a kwarg in the constructor
-        level.name = 'Level'
-        level.tags.extend([
-            nbt.TAG_List(name='Entities', type=nbt.TAG_Compound),
-            nbt.TAG_List(name='TileEntities', type=nbt.TAG_Compound),
-            nbt.TAG_List(name='LiquidTicks', type=nbt.TAG_Compound),
-            nbt.TAG_Int(name='xPos', value=self.x),
-            nbt.TAG_Int(name='zPos', value=self.z),
-            nbt.TAG_Long(name='LastUpdate', value=0),
-            nbt.TAG_Long(name='InhabitedTime', value=0),
-            nbt.TAG_Byte(name='isLightOn', value=1),
-            nbt.TAG_String(name='Status', value='full')
-        ])
-        sections = nbt.TAG_List(name='Sections', type=nbt.TAG_Compound)
-        biomes = nbt.TAG_Int_Array(name='Biomes')
-
-        biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
-        for s in self.sections:
-            if s:
-                p = s.palette()
-                # Minecraft does not save sections that are just air
-                # So we can just skip them
-                if len(p) == 1 and p[0].name() == 'minecraft:air':
-                    continue
-                sections.tags.append(s.save(new=False))
-        level.tags.append(sections)
-        level.tags.append(biomes)
-        root.tags.append(level)
-        return root
-
-    def save_new(self) -> nbt.NBTFile:
-        """
-        Saves the chunk data to a :class:`NBTFile`, using new formatting
-
-        Notes
-        -----
-        Does not contain most data a regular chunk would have,
-        but minecraft stills accept it.
-        """
-        root = nbt.NBTFile()
-        root.tags.append(nbt.TAG_Int(name='DataVersion',value=self.version))
-        sections = nbt.TAG_Compound()
-        # Needs to be in a separate line because it just gets
-        # ignored if you pass it as a kwarg in the constructor
-        sections = nbt.TAG_List(name='sections', type=nbt.TAG_Compound)
-
-        for s in self.sections:
-            if s:
-                sections.tags.append(s.save(new=True))
-        root.tags.append(sections)
-
-        root.tags.extend([
-            nbt.TAG_List(name='block_entities', type=nbt.TAG_Compound),
-            nbt.TAG_List(name='block_ticks', type=nbt.TAG_Compound),
-            nbt.TAG_List(name='fluid_ticks', type=nbt.TAG_Compound),
-            nbt.TAG_Long(name='LastUpdate', value=0),
-            nbt.TAG_Long(name='InhabitedTime', value=0),
-            nbt.TAG_Byte(name='isLightOn', value=1),
-            nbt.TAG_Int(name='xPos', value=self.x),
-            nbt.TAG_Int(name='yPos', value=-3),
-            nbt.TAG_Int(name='zPos', value=self.z),
-            nbt.TAG_String(name='Status', value='full')
-        ])
-        return root
-
-# methods on raw data
+            self.data = nbt_data["Level"]
+            self.tile_entities = self.data["TileEntities"]
+        self.x = self.data["xPos"].value
+        self.z = self.data["zPos"].value
 
     def get_section(self, y: int) -> nbt.TAG_Compound:
         """
@@ -463,7 +238,14 @@ class Chunk:
             biome_id = biomes[index]
             return Biome.from_numeric_id(biome_id)
 
-    def get_block_from_data(self, x: int, y: int, z: int, section: Union[int, nbt.TAG_Compound] = None, force_new: bool = False):
+    def get_block(
+        self,
+        x: int,
+        y: int,
+        z: int,
+        section: Union[int, nbt.TAG_Compound] = None,
+        force_new: bool = False,
+    ) -> Union[Block, OldBlock]:
         """
         Returns the block in the given coordinates
 
@@ -576,8 +358,6 @@ class Chunk:
         # which are the palette index
         palette_id = shifted_data & 2**bits - 1
         return Block.from_palette(palette[palette_id])
-
-# below: untouched for now, can stay or change to read data from sections
 
     def stream_blocks(
         self,
@@ -728,3 +508,24 @@ class Chunk:
             if x == t_x and y == t_y and z == t_z:
                 return tile_entity
 
+    @classmethod
+    def from_region(cls, region: Union[str, Region], chunk_x: int, chunk_z: int):
+        """
+        Creates a new chunk from region and the chunk's X and Z
+
+        Parameters
+        ----------
+        region
+            Either a :class:`anvil.Region` or a region file name (like ``r.0.0.mca``)
+
+        Raises
+        ----------
+        anvil.ChunkNotFound
+            If a chunk is outside this region or hasn't been generated yet
+        """
+        if isinstance(region, str):
+            region = Region.from_file(region)
+        nbt_data = region.chunk_data(chunk_x, chunk_z)
+        if nbt_data is None:
+            raise ChunkNotFound(f"Could not find chunk ({chunk_x}, {chunk_z})")
+        return cls(nbt_data)
