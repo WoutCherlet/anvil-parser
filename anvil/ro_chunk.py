@@ -5,6 +5,9 @@ from .block import Block, OldBlock
 from .region import Region
 from .errors import OutOfBoundsCoordinates, ChunkNotFound
 
+# TODO: is this class obsolute with optimizations for rw chunk as data is only read when necessary?
+
+
 # This is the final version before the Minecraft overhaul that includes the 
 # 1.18 expansion of the world's vertical height from -64 to 319
 _VERSION_1_17_1 = 2730

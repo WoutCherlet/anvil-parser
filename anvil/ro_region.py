@@ -5,6 +5,8 @@ from io import BytesIO
 import anvil
 from .errors import GZipChunkData
 
+# TODO: is this class obsolute with optimizations for rw region as data is only read when necessary?
+
 class RORegion:
     """
     Read-only region

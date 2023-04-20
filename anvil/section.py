@@ -1,5 +1,6 @@
 from typing import List, Tuple, Optional
 from .block import Block
+from .biome import Biome
 from .errors import OutOfBoundsCoordinates
 from nbt import nbt
 from struct import Struct
@@ -74,7 +75,7 @@ class Section:
     air: :class:`Block`
         An air block
     """
-    __slots__ = ('y', 'blocks', 'air', 'version', 'data', 'constructed')
+    __slots__ = ('y', 'blocks', 'air', 'version', 'data', 'constructed', 'biome')
     def __init__(self, data: nbt.TAG_COMPOUND, chunk_version, y=None):
         self.version = chunk_version
         self.blocks: List[Block] = [None] * 4096
@@ -82,9 +83,11 @@ class Section:
         if data is None:
             self.y = y
             self.constructed = True
+            self.biome = None
         else:
             self.y = data["Y"].value
             self.constructed = False
+            self.biome = False
         # Block that will be used when None
         self.air = Block('minecraft', 'air')
         
@@ -112,6 +115,8 @@ class Section:
 
         block_palette = _palette_from_section(self.data)
         
+        # TODO: read Biome: can just read raw biome data and output this when saving if unchanged
+
         bits = max((len(block_palette) - 1).bit_length(), 4)
 
         stretches = self.version < _VERSION_20w17a
@@ -199,6 +204,9 @@ class Section:
             self.constructed = True
         index = y * 256 + z * 16 + x
         return self.blocks[index] or self.air
+
+    def set_biome(self, biome: Biome):
+        self.biome = biome
 
     def palette(self) -> Tuple[Block]:
         """
@@ -303,8 +311,6 @@ class Section:
     def save_new(self)  -> nbt.TAG_Compound:
         """
         Saves the section to a TAG_Compound and is used inside the chunk tag, using new format starting from 1.16
-        
-        # TODO: fix biomes
         """
         root = nbt.TAG_Compound()
         root.tags.append(nbt.TAG_Byte(name='Y', value=self.y))
@@ -339,13 +345,13 @@ class Section:
         block_states.tags.append(nbt_pal)
         block_states.tags.append(bstates)
         
-        # TODO: fix biomes: 
-        # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
-        # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
         nbt_biom = nbt.TAG_Compound(name='biomes')
         nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_String)
-        # this is a placeholder for when biomes are supported, remove
-        nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
+        # TODO: change when biome data is read
+        if self.biome is not None:
+            nbt_pal_biom.tag.append(nbt.TAG_String(value=self.biome.name()))
+        else:
+            nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
         nbt_biom.tags.append(nbt_pal_biom)
 
         root.tags.append(nbt_biom)

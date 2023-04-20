@@ -236,20 +236,24 @@ class Chunk:
             self.add_section(section)
         section.set_block(block, x, y % 16, z)
 
+    def set_biome(self, biome: Biome):
+        for section in self.sections:
+            if section is not None:
+                section.set_biome(biome)
+
     def save(self) -> nbt.NBTFile:
         """
         Saves the chunk data to a :class:`NBTFile` with format depending on version
 
         Notes
         -----
-        Does not contain most data a regular chunk would have,
+        If changed, does not contain most data a regular chunk would have,
         but minecraft stills accept it.
         """
-
-        # TODO: support more versions ?
         if not self.constructed:
             return self.data
-
+        
+        # TODO: support more versions ?
         if self.version > _VERSION_1_17_1:
             return self.save_new()
         else:

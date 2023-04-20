@@ -29,12 +29,12 @@ class EmptyChunk:
     version: :class:`int`
         Chunk's DataVersion
     """
-    __slots__ = ('x', 'z', 'sections', 'biomes', 'version')
+    __slots__ = ('x', 'z', 'sections', 'biome', 'version')
     def __init__(self, x: int, z: int):
         self.x = x
         self.z = z
         self.sections: List[EmptySection] = [None]*24
-        self.biomes: List[Biome] = [Biome('ocean')]*16*16
+        self.biome = None
         self.version = 3337
 
     def add_section(self, section: EmptySection, replace: bool = True):
@@ -118,29 +118,11 @@ class EmptyChunk:
             self.add_section(section)
         section.set_block(block, x, y % 16, z)
 
-    def set_biome(self, biome: Biome, x: int, z: int):
-        """
-        Sets biome at given coordinates
+    def set_biome(self, biome: Biome):
+        for section in self.section:
+            if section is not None:
+                section.set_biome(biome)
         
-        Parameters
-        ----------
-        int x, z
-            In range of 0 to 15
-
-        Raises
-        ------
-        anvil.OutOfBoundCoordidnates
-            If X or Z are not in the proper range
-        
-        """
-        if x not in range(16):
-            raise OutOfBoundsCoordinates(f'X ({x!r}) must be in range of 0 to 15')
-        if z not in range(16):
-            raise OutOfBoundsCoordinates(f'Z ({z!r}) must be in range of 0 to 15')
-
-        index = z * 16 + x
-        self.biomes[index] = biome
-
     def save_old(self) -> nbt.NBTFile:
         """
         Saves the chunk data to a :class:`NBTFile`
@@ -170,7 +152,7 @@ class EmptyChunk:
         sections = nbt.TAG_List(name='Sections', type=nbt.TAG_Compound)
         biomes = nbt.TAG_Int_Array(name='Biomes')
 
-        biomes.value = [_get_legacy_biome_id(biome) for biome in self.biomes]
+        biomes.value = [_get_legacy_biome_id(Biome.from_name("minecraft:ocean")) for _ in range(16*16)]
         for s in self.sections:
             if s:
                 p = s.palette()

@@ -1,5 +1,6 @@
 from typing import List, Tuple
 from . import Block
+from .biome import Biome
 from .errors import OutOfBoundsCoordinates
 from nbt import nbt
 from struct import Struct
@@ -31,13 +32,14 @@ class EmptySection:
     air: :class:`Block`
         An air block
     """
-    __slots__ = ('y', 'blocks', 'air')
+    __slots__ = ('y', 'blocks', 'air', 'biome')
     def __init__(self, y: int):
         self.y = y
         # None is the same as an air block
         self.blocks: List[Block] = [None] * 4096
         # Block that will be used when None
         self.air = Block('minecraft', 'air')
+        self.biome = None
 
     @staticmethod
     def inside(x: int, y: int, z: int) -> bool:
@@ -90,6 +92,9 @@ class EmptySection:
             raise OutOfBoundsCoordinates('X Y and Z must be in range of 0-15')
         index = y * 256 + z * 16 + x
         return self.blocks[index] or self.air
+
+    def set_biome(self, biome: Biome):
+        self.biome = biome
 
     def palette(self) -> Tuple[Block]:
         """
@@ -179,8 +184,6 @@ class EmptySection:
     def save(self)  -> nbt.TAG_Compound:
         """
         Saves the section to a TAG_Compound and is used inside the chunk tag, using new format starting from 1.16
-        
-        # TODO: fix biomes
         """
         root = nbt.TAG_Compound()
         root.tags.append(nbt.TAG_Byte(name='Y', value=self.y))
@@ -215,13 +218,12 @@ class EmptySection:
         block_states.tags.append(nbt_pal)
         block_states.tags.append(bstates)
         
-        # TODO: fix biomes: might be easy by just setting biome for whole section?
-        # biomes should be saved per section, are saved per 4*4 block, 64 indices pointing to biome in pallete exactly like blocks
-        # may not be worth the hassle, but maybe cool as mc probs spawns mobs based on biome
         nbt_biom = nbt.TAG_Compound(name='biomes')
         nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_String)
-        # this is a placeholder for when biomes are supported, remove
-        nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
+        if self.biome is not None:
+            nbt_pal_biom.tags.append(nbt.TAG_String(value=self.biome.name()))
+        else:
+            nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
         nbt_biom.tags.append(nbt_pal_biom)
 
         root.tags.append(nbt_biom)
