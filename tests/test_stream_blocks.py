@@ -1,5 +1,5 @@
 import context as _
-from anvil import EmptyRegion, Region, Block
+from anvil import EmptyRegion, Block, RORegion
 
 def coord_to_index(x, y, z):
     return y * 16 * 16 + z * 16 + x
@@ -14,7 +14,7 @@ def test_4bits():
     region.set_block(Block('minecraft', 'white_wool'), 8, 6, 0)
     region.set_block(Block('minecraft', 'bedrock'), 15, 15, 15)
 
-    region = Region(region.save())
+    region = RORegion(region.save())
 
     for i, block in enumerate(region.get_chunk(0, 0).stream_blocks()):
         if i == 0:
@@ -41,10 +41,11 @@ def test_5bits():
     for block, pos in zip(blocks, positions):
         region.set_block(Block('minecraft', block), *pos)
 
-    region = Region(region.save())
+    region = RORegion(region.save())
 
-    for i, block in enumerate(region.get_chunk(0, 0).stream_blocks()):
+    for i, block in enumerate(region.get_chunk(0, 0).stream_blocks(force_new=True)):
         if block.id in blocks:
+            print(block.id)
             assert coord_to_index(*positions[blocks.index(block.id)]) == i
         else:
             assert block.id == 'air'
@@ -58,7 +59,7 @@ def test_index():
     for i, block in enumerate(blocks):
         region.set_block(Block('minecraft', block), i % 16, 0, i // 16)
 
-    region = Region(region.save())
+    region = RORegion(region.save())
 
     for i, block in enumerate(region.get_chunk(0, 0).stream_blocks(index=2)):
         i += 2
@@ -76,7 +77,7 @@ def test_index_5bits():
     for i, block in enumerate(blocks):
         region.set_block(Block('minecraft', block), i % 16, 0, i // 16)
 
-    region = Region(region.save())
+    region = RORegion(region.save())
     
     for i, block in enumerate(region.get_chunk(0, 0).stream_blocks(index=17)):
         i += 17

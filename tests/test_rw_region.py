@@ -25,7 +25,7 @@ def test_save_region():
 
     region = Region.from_file(str(reg_file))
 
-    dirt = anvil.Block('minecraft', 'dirt')
+    dirt = Block('minecraft', 'dirt')
 
     region.set_block(dirt, -1, 0, -1)
 
