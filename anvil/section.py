@@ -87,7 +87,7 @@ class Section:
         else:
             self.y = data["Y"].value
             self.constructed = False
-            self.biome = False
+            self.biome = None
         # Block that will be used when None
         self.air = Block('minecraft', 'air')
         
@@ -349,7 +349,7 @@ class Section:
         nbt_pal_biom = nbt.TAG_List(name='palette', type=nbt.TAG_String)
         # TODO: change when biome data is read
         if self.biome is not None:
-            nbt_pal_biom.tag.append(nbt.TAG_String(value=self.biome.name()))
+            nbt_pal_biom.tags.append(nbt.TAG_String(value=self.biome.name()))
         else:
             nbt_pal_biom.tags.append(nbt.TAG_String(value="minecraft:plains"))
         nbt_biom.tags.append(nbt_pal_biom)

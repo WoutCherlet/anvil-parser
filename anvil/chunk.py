@@ -322,7 +322,7 @@ class Chunk:
 
         for s in self.sections:
             if s:
-                sections.tags.append(s.save(new=True))
+                sections.tags.append(s.save())
         root.tags.append(sections)
 
         root.tags.extend([
