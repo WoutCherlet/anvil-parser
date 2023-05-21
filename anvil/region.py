@@ -3,6 +3,7 @@ from nbt import nbt
 import zlib
 import math
 import re
+import os
 from io import BytesIO
 from .errors import GZipChunkData, OutOfBoundsCoordinates
 from .chunk import Chunk
@@ -260,7 +261,7 @@ class Region:
             Either a file path or a file object
         """
         if isinstance(file, str):
-            matches = re.findall("-?\d+", file)
+            matches = re.findall("-?\d+", os.path.basename(file))
             if len(matches) != 2:
                 print(f"Coulnd't extract region x and z from region file {file}")
                 return
