@@ -234,7 +234,7 @@ class Chunk:
             self.constructed = True
         section = self.sections[(y // 16) + 4]
         if section is None:
-            section = Section(y // 16, chunk_version=self.version)
+            section = Section(data= None, chunk_version=self.version, y=y // 16)
             self.add_section(section)
         section.set_block(block, x, y % 16, z)
 
