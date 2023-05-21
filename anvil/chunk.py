@@ -102,6 +102,8 @@ class Chunk:
             self.tile_entities = None
 
             self.sections = [None] * len(_section_height_range(self.version))
+
+            self.constructed = True
         
         # data is not None: read in chunk
         else:
@@ -126,7 +128,7 @@ class Chunk:
                 print(f"Assigned z: {z}, actual x: {self.z}")
             self.sections = [None] * len(_section_height_range(self.version))
         
-        self.constructed = False
+            self.constructed = False
     
     def get_sections_from_data(self):
         """
