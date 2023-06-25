@@ -139,8 +139,8 @@ class Region:
         """
         if not self.inside(x, y, z):
             raise OutOfBoundsCoordinates(f'Block ({x}, {y}, {z}) is not inside this region')
-        cx = x // 32
-        cz = z // 32
+        cx = x // 16
+        cz = z // 16
         chunk = self.get_chunk(cx, cz)
         if chunk is None:
             chunk = Chunk(cx, cz)
@@ -166,8 +166,8 @@ class Region:
         """
         if not self.inside(x, y, z):
             raise OutOfBoundsCoordinates(f'Block ({x}, {y}, {z}) is not inside this region')
-        cx = x // 32
-        cz = z // 32
+        cx = x // 16
+        cz = z // 16
         chunk = self.get_chunk(cx, cz)
         if chunk is None:
             return Block.from_name("minecraft:air")
