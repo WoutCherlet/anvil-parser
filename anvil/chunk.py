@@ -160,14 +160,15 @@ class Chunk:
         
         Raises
         ------
-        anvil.EmptySectionAlreadyExists
+        anvil.SectionAlreadyExists
             If ``replace`` is ``False`` and section with same Y already exists in this chunk
         """
         if not self.constructed:
+            print(f"Constructing chunk ({self.x}, {self.z}) in add_section")
             self.get_sections_from_data()
             self.constructed = True
         if self.sections[section.y+4] and not replace:
-            raise SectionAlreadyExists(f'EmptySection (Y={section.y}) already exists in this chunk')
+            raise SectionAlreadyExists(f'Section (Y={section.y}) already exists in this chunk')
         self.sections[section.y+4] = section
 
     def get_block(self, x: int, y: int, z: int) -> Block:

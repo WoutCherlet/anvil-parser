@@ -315,6 +315,13 @@ class Section:
         root = nbt.TAG_Compound()
         root.tags.append(nbt.TAG_Byte(name='Y', value=self.y))
 
+        # TODO: TEMP: set skylight at max value?
+        arr = bytearray([255]*2048)
+        skylight = nbt.TAG_Byte_Array(name='SkyLight')
+        skylight.value = arr
+        root.tags.append(skylight)
+
+
         block_states = nbt.TAG_Compound(name='block_states')
 
         nbt_pal = nbt.TAG_List(name='palette', type=nbt.TAG_Compound)
